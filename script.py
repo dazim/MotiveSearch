@@ -5,12 +5,11 @@
 ################################################################################
 
 import argparse                 # for parsing filename over cli
-import re                       # for regex
 import itertools                # for generation of n-size k-mers
-import numpy as np              # for pandas
-import pandas as pd             # for kmer count table
 import matplotlib.pyplot as plt # for visualisation
-from datetime import datetime	# for benchmarking
+import pandas as pd             # for kmer count table
+import re                       # for regex
+from datetime import datetime   # for benchmarking
 
 ################################################################################
 
@@ -26,16 +25,16 @@ input_type = "default"
 ##### Filename can be passed to script over the CLI ############################
 ################################################################################
 
-import argparse
 
-parser = argparse.ArgumentParser()                                               
+parser = argparse.ArgumentParser()
 
 parser.add_argument("--mode", "-m", type=str, required=True)
 parser.add_argument("--input_genes", "-i", type=str, required=True)
 parser.add_argument("--input_type", "-t", type=str, required=False)
 parser.add_argument("--genome", "-g", type=str, required=False)
 
-args = parser.parse_args() 
+args = parser.parse_args()
+
 
 ################################################################################
 
@@ -44,32 +43,32 @@ args = parser.parse_args()
 ################################################################################
 
 def extract_counts(inputfile, inputtype):
+    file = open(inputfile, "r")
 
-	file = open(inputfile, "r")
+    gene_identifiers = []
 
-	gene_identifiers = []
+    if inputtype == "counttable":
 
-	if inputtype == "counttable":			
+        for line in file:
 
-		for line in file:
+            try:
 
-			try:
+                row = re.findall("cg\d{4}.+", line)[0]
+                parts = str(row).split("\t")
+                gene_identifiers.append([parts[0], parts[2], parts[3], parts[4],
+                                         parts[6]])
 
-				row = re.findall("cg\d{4}.+", line)[0]
-				parts = str(row).split("\t")
-				gene_identifiers.append([parts[0], parts[2], parts[3], parts[4], 
-										 parts[6]])
+            except IndexError:
 
-			except IndexError:
+                pass  # print("Error in extract_genes")
 
-				pass #print("Error in extract_genes")
+    else:
 
-	else:
+        for line in file:
+            gene_identifiers.append(re.findall("cg\d{4}", str(line)))
 
-		for line in file:
-			gene_identifiers.append(re.findall("cg\d{4}", str(line)))
+    return gene_identifiers
 
-	return gene_identifiers
 
 ################################################################################
 
@@ -78,29 +77,29 @@ def extract_counts(inputfile, inputtype):
 ################################################################################
 
 def load_promoters(inputfile):
+    file = open(inputfile, "r")
 
-	file = open(inputfile, "r")
+    promoters = []
 
-	promoters = []		
+    for line in file:
 
-	for line in file:
+        try:
 
-		try:
+            line = str(line).strip().split("\t")
+            # parts = str(row).split("\t")
+            if line[4] == "fwd":
+                strand = "+"
+            else:
+                strand = "-"
 
-			line = str(line).strip().split("\t")
-			#parts = str(row).split("\t")
-			if line[4] == "fwd":
-				strand = "+"
-			else:
-				strand = "-"
+            promoters.append([line[0], line[2], line[1], strand, line[5]])
 
-			promoters.append([line[0], line[2], line[1], strand, line[5]])
+        except IndexError:
 
-		except IndexError:
+            print ("Error in load_promoters")
 
-			print ("Error in load_promoters")
+    return promoters
 
-	return promoters
 
 ################################################################################
 
@@ -109,23 +108,21 @@ def load_promoters(inputfile):
 ##### Extract n most frequent kmers from used promoters ########################
 ################################################################################
 
-def top_kmers(promoters, kmers, n):	
+def top_kmers(promoters, kmers, n):
+    seq = ""
 
-	seq = ""
+    df = pd.DataFrame(index=kmers, columns=["Total"])
 
-	df=pd.DataFrame(index=kmers, columns=["Total"])
+    for promoter in promoters:
+        seq += promoter[4]
 
-	for promoter in promoters:
+    for i in range(0, len(kmers)):
+        df.at[kmers[i], "Total"] = seq.count(kmers[i])
 
-		seq += promoter[4]
+    sorted_df = best_kmers(df)
 
-	for i in range(0,len(kmers)):
+    return sorted_df.index.tolist()[0:n]
 
-		df.at[kmers[i],"Total"] = seq.count(kmers[i])
-
-	sorted_df = best_kmers(df)
-
-	return sorted_df.index.tolist()[0:n]
 
 ################################################################################
 
@@ -134,36 +131,32 @@ def top_kmers(promoters, kmers, n):
 ################################################################################
 
 def count_kmers(promoters, kmers):
+    gen_identifier = []
 
-	gen_identifier = []
+    for promoter in promoters:
+        gen_identifier.append(promoter[1])
 
-	for promoter in promoters:
+    gen_identifier.append("Total")
 
-		gen_identifier.append(promoter[1])
+    df = pd.DataFrame(index=kmers, columns=[gen_identifier])
 
-	gen_identifier.append("Total")
+    for i in range(0, len(promoters)):
 
-	df=pd.DataFrame(index=kmers, columns=[gen_identifier])
+        for j in range(0, len(kmers)):
+            df.at[kmers[j], promoters[i][1]] = promoters[i][4].count(kmers[j])
 
-	for i in range(0,len(promoters)):
+    for m in range(0, len(kmers)):
 
-		for j in range(0,len(kmers)):
+        for n in range(0, len(promoters)):
+            df.at[kmers[m], "Total"] = 0
 
-			df.at[kmers[j],promoters[i][1]] = promoters[i][4].count(kmers[j])
+    for w in range(0, len(kmers)):
 
-	for m in range(0,len(kmers)):
+        for v in range(0, len(promoters)):
+            df.at[kmers[w], "Total"] += df.at[kmers[w], promoters[v][1]]
 
-		for n in range(0,len(promoters)):
+    return df
 
-			df.at[kmers[m],"Total"] = 0
-
-	for w in range(0,len(kmers)):
-
-		for v in range(0,len(promoters)):
-
-			df.at[kmers[w],"Total"] += df.at[kmers[w],promoters[v][1]]
-
-	return df
 
 ################################################################################
 
@@ -172,12 +165,10 @@ def count_kmers(promoters, kmers):
 ################################################################################
 
 def summarize_kmers(df):
+    summary = []
 
-	summary = []
+    return summary
 
-			
-
-	return summary
 
 ################################################################################
 
@@ -186,18 +177,17 @@ def summarize_kmers(df):
 ################################################################################
 
 def filter_promoters(promoters, genes):
+    filtered_promoters = []
 
-	filtered_promoters = []
+    for gene in genes:
 
-	for gene in genes:
+        for i in range(0, len(promoters)):
 
-		for i in range(0,len(promoters)):
+            if gene[0] == promoters[i][1]:
+                filtered_promoters.append(promoters[i])
 
-			if gene[0] == promoters[i][1]:
+    return filtered_promoters
 
-				filtered_promoters.append(promoters[i])
-
-	return filtered_promoters
 
 ################################################################################
 
@@ -206,12 +196,11 @@ def filter_promoters(promoters, genes):
 ################################################################################
 
 def generate_kmers(size):
+    bases = ["a", "g", "t", "c"]
 
-	bases = ["a", "g", "t", "c"]
+    kmers = [''.join(i) for i in itertools.product(bases, repeat=size)]
 
-	kmers = [''.join(i) for i in itertools.product(bases, repeat = size)]
-
-	return kmers
+    return kmers
 
 
 ################################################################################
@@ -221,8 +210,7 @@ def generate_kmers(size):
 ################################################################################
 
 def best_kmers(df):
-
-	return df.sort("Total", ascending=0)
+    return df.sort("Total", ascending=0)
 
 
 ################################################################################
@@ -232,12 +220,11 @@ def best_kmers(df):
 ################################################################################
 
 def visualize_kmers(df):
+    plt.bar(range(len(df["Total"].values)), df["Total"].values)
 
-	plt.bar(range(len(df["Total"].values)), df["Total"].values)
+    plt.show()
 
-	plt.show()
-
-	return 
+    return
 
 
 ################################################################################
@@ -247,25 +234,21 @@ def visualize_kmers(df):
 ################################################################################
 
 def prepare_genome(file, kmers):
+    file = open(file, "r")
 
-	file = open(file, "r")
+    gene_identifiers = []
 
-	gene_identifiers = []
+    seq = ""
 
-	seq = ""
+    df = pd.DataFrame(index=kmers, columns=["Count"])
 
-	df=pd.DataFrame(index=kmers, columns=["Count"])
+    for line in file:
+        seq += line.strip().lower()
 
-	for line in file:
+    for i in range(0, len(kmers)):
+        df.at[kmers[i], "Count"] = seq.count(kmers[i])
 
-		seq += line.strip().lower()
-
-	for i in range(0,len(kmers)):
-
-		df.at[kmers[i],"Count"] = seq.count(kmers[i])
-
-
-	return df 
+    return df
 
 
 ################################################################################
@@ -279,55 +262,52 @@ def prepare_genome(file, kmers):
 
 if args.mode == "AnalysePromoters":
 
-	gene_counts = extract_counts(args.input_genes, args.input_type)
-	print(len(gene_counts))
+    gene_counts = extract_counts(args.input_genes, args.input_type)
+    print(len(gene_counts))
 
-	dge_genes = [["cg0002"], ["cg0012"], ["cg0003"], ["cg0004"], ["cg0005"]]
+    dge_genes = [["cg0002"], ["cg0012"], ["cg0003"], ["cg0004"], ["cg0005"]]
 
-	promoters = load_promoters("promoters_cg_short.txt")
-	print(len(promoters))
+    promoters = load_promoters("promoters_cg_short.txt")
+    print(len(promoters))
 
-	c = filter_promoters(promoters, dge_genes)
+    c = filter_promoters(promoters, dge_genes)
 
-	d = generate_kmers(3)
+    d = generate_kmers(3)
 
-	e = count_kmers(c, d)
+    e = count_kmers(c, d)
 
-	#print(e)
+    # print(e)
 
-	#f = visualize_kmers(e)
+    # f = visualize_kmers(e)
 
-	f = best_kmers(e)
+    f = best_kmers(e)
 
-	visualize_kmers(f)
+    visualize_kmers(f)
 
 elif args.mode == "PrepareGenome":
 
-	t1 = datetime.now()
+    t1 = datetime.now()
 
-	gene_counts = extract_counts(args.input_genes, args.input_type)
-	print(len(gene_counts))
+    gene_counts = extract_counts(args.input_genes, args.input_type)
+    print(len(gene_counts))
 
-	dge_genes = [["cg0002"], ["cg0012"], ["cg0003"], ["cg0004"], ["cg0005"]]
+    dge_genes = [["cg0002"], ["cg0012"], ["cg0003"], ["cg0004"], ["cg0005"]]
 
-	promoters = load_promoters("promoters_cg_short.txt")
-	print(len(promoters))
+    promoters = load_promoters("promoters_cg_short.txt")
+    print(len(promoters))
 
-	c = filter_promoters(promoters, dge_genes)
+    c = filter_promoters(promoters, dge_genes)
 
-	kmers_best = top_kmers(c, generate_kmers(10), 20)
+    kmers_best = top_kmers(c, generate_kmers(10), 20)
+
+    for i in range(0, 21):
+        t1 = datetime.now()
+
+        # print(prepare_genome(args.input_genes, kmers_best))
 
 
-	for i in range(0,21):
-
-		t1 = datetime.now()
-
-
-		#print(prepare_genome(args.input_genes, kmers_best))
-
-		
-		print(str(i), " ", str(datetime.now()-t1))
-#print(summarize_kmers(e))
+        print(str(i), " ", str(datetime.now() - t1))
+# print(summarize_kmers(e))
 
 
 
