@@ -18,3 +18,8 @@ python script.py -m PrepareGenome -i genome.fasta
 
 python script.py -m AnalysePromoters -i counttable.txt -t counttable
 ## Input files
+
+### config.txt
+´´´
+A
+´´´
