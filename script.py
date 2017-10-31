@@ -210,7 +210,7 @@ def generate_kmers(size):
 ################################################################################
 
 def best_kmers(df):
-    return df.sort("Total", ascending=0)
+    return df.sort_values("Total", ascending=0)
 
 
 ################################################################################
@@ -300,13 +300,16 @@ elif args.mode == "PrepareGenome":
 
     kmers_best = top_kmers(c, generate_kmers(10), 20)
 
-    for i in range(0, 21):
-        t1 = datetime.now()
+    for kmer in kmers_best:
+        print kmer
+
+#    for i in range(0, 21):
+#        t1 = datetime.now()
 
         # print(prepare_genome(args.input_genes, kmers_best))
 
 
-        print(str(i), " ", str(datetime.now() - t1))
+#        print(str(i), " ", str(datetime.now() - t1))
 # print(summarize_kmers(e))
 
 
