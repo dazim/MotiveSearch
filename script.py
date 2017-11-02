@@ -32,8 +32,32 @@ parser.add_argument("--mode", "-m", type=str, required=True)
 parser.add_argument("--input_genes", "-i", type=str, required=True)
 parser.add_argument("--input_type", "-t", type=str, required=False)
 parser.add_argument("--genome", "-g", type=str, required=False)
+parser.add_argument("--config", "-c", type=str, required=False)
 
 args = parser.parse_args()
+
+
+################################################################################
+
+################################################################################
+##### Extract information from config.txt ######################################
+################################################################################
+
+config_file = open(args.config, "r")
+
+for row in config_file:
+    if re.findall("path_to_genome = (.*)", row):
+        path_to_genome = re.findall("path_to_genome = (.*)", row)
+    elif re.findall("path_to_promoters = (.*)", row):
+        path_to_promoters = re.findall("path_to_promoters = (.*)", row)
+    elif re.findall("list_of_differentially_expressed_genes = (.*)", row):
+        deg_list = re.findall("list_of_differentially_expressed_genes = (.*)", row)
+    elif re.findall("kmer_length = (.*)", row):
+        kmer_length = re.findall("kmer_length = (.*)", row)
+    elif re.findall("top_n_kmers = (.*)", row):
+        top_n_kmers = re.findall("top_n_kmers = (.*)", row)
+    else:
+        print "I found a line that is either unneccecary or incorrent. Please fix the line containing: " + row
 
 
 ################################################################################
@@ -115,13 +139,14 @@ def top_kmers(promoters, kmers, n):
 
     for promoter in promoters:
         seq += promoter[4]
-
+    #TODO: search kmers in single promoter sequences, not the combined seq
     for i in range(0, len(kmers)):
         df.at[kmers[i], "Total"] = seq.count(kmers[i])
 
     sorted_df = best_kmers(df)
 
-    return sorted_df.index.tolist()[0:n]
+    #return sorted_df.index.tolist()[0:n]
+    return sorted_df
 
 
 ################################################################################
@@ -293,7 +318,7 @@ elif args.mode == "PrepareGenome":
 
     dge_genes = [["cg0002"], ["cg0012"], ["cg0003"], ["cg0004"], ["cg0005"]]
 
-    promoters = load_promoters("promoters_cg_short.txt")
+    promoters = load_promoters("/homes/ttreis/Code/Python/MotiveSearch/promoters_cg_short.txt")
     print(len(promoters))
 
     c = filter_promoters(promoters, dge_genes)
@@ -312,6 +337,16 @@ elif args.mode == "PrepareGenome":
 #        print(str(i), " ", str(datetime.now() - t1))
 # print(summarize_kmers(e))
 
+elif args.mode == "debug":
+
+    dge_genes = [["cg0002"], ["cg0012"], ["cg0003"], ["cg0004"], ["cg0005"]]
+
+    promoters = load_promoters("promoters_cg_short.txt")
+    print(len(promoters))
+
+    c = filter_promoters(promoters, dge_genes)
+
+    print top_kmers(c, generate_kmers(10), 20)
 
 
 ################################################################################

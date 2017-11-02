@@ -1,0 +1,6 @@
+path_to_genome = /homes/ttreis/Code/Python/MotiveSearch/genome.fasta
+path_to_promoters = /homes/ttreis/Code/Python/MotiveSearch/promoters_cg_short.txt
+list_of_differentially_expressed_genes = /homes/ttreis/Code/Python/MotiveSearch/deg_genes.txt
+kmer_length = 10
+top_n_kmers = 20
+g
